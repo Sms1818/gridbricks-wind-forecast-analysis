@@ -32,13 +32,32 @@ export interface AnalysisResponse {
 export interface AnalysisStats {
     expectedHours: number;
     matchedHours: number;
+    unmatchedHours: number;
     coveragePercent: number;
     meanForecast: number | null;
     meanActual: number | null;
+    meanSignedError: number | null;
     worstHours: ForecastComparison[];
 }
 
-const LOOKBACK_HOURS = 96;
+export interface HourlyObservation {
+    startTime: string;
+    forecastGeneration: number | null;
+    actualGeneration: number | null;
+    error: number | null;
+    absoluteError: number | null;
+    publishTime: string | null;
+    leadTimeHours: number | null;
+    matched: boolean;
+}
+
+/**
+ * WINDFOR is fetched by publication time. NESO wind forecasts are produced
+ * on a multi-day horizon and republished frequently. A 7-day lookback
+ * covers the longest delivery window the UI allows, so the latest eligible
+ * publication at cutoff is not dropped by a shorter fetch window.
+ */
+export const PUBLICATION_LOOKBACK_HOURS = 168;
 const HOUR_MS = 60 * 60 * 1000;
 
 function requireValidDate(value: string, name: string): Date {
@@ -131,11 +150,11 @@ export function getSettlementRange(
 }
 
 /**
- * Provisional 96-hour publication lookback.
+ * Publication fetch window ending at the decision cutoff.
  *
- * If deliveryStart - 96h would fall after the cutoff, use the 96 hours
- * before the cutoff instead. This prevents an inverted publication
- * window. The 96-hour assumption still needs validation against Elexon.
+ * Look back from delivery start when that still precedes the cutoff.
+ * If delivery is more than PUBLICATION_LOOKBACK_HOURS after the cutoff,
+ * look back from the cutoff instead so the range cannot invert.
  */
 export function getPublicationWindow(
     deliveryStart: string,
@@ -144,11 +163,15 @@ export function getPublicationWindow(
     const start = requireValidDate(deliveryStart, "Delivery start");
     const cutoff = requireValidDate(decisionCutoff, "Decision cutoff");
 
-    const candidate = new Date(start.getTime() - LOOKBACK_HOURS * HOUR_MS);
+    const candidate = new Date(
+        start.getTime() - PUBLICATION_LOOKBACK_HOURS * HOUR_MS,
+    );
     const publishFrom =
         candidate.getTime() <= cutoff.getTime()
             ? candidate
-            : new Date(cutoff.getTime() - LOOKBACK_HOURS * HOUR_MS);
+            : new Date(
+                cutoff.getTime() - PUBLICATION_LOOKBACK_HOURS * HOUR_MS,
+            );
 
     return {
         publish_from: publishFrom.toISOString().replace(".000Z", "Z"),
@@ -203,10 +226,12 @@ export function getAnalysisStats(
     return {
         expectedHours,
         matchedHours,
+        unmatchedHours: expectedHours - matchedHours,
         coveragePercent:
             expectedHours === 0 ? 0 : (matchedHours / expectedHours) * 100,
         meanForecast: mean(rows.map((row) => row.forecastGeneration)),
         meanActual: mean(rows.map((row) => row.actualGeneration)),
+        meanSignedError: mean(rows.map((row) => row.error)),
         worstHours: [...rows]
             .sort(
                 (a, b) =>
@@ -215,6 +240,62 @@ export function getAnalysisStats(
             )
             .slice(0, 5),
     };
+}
+
+function toHourIso(timestamp: number): string {
+    return new Date(timestamp).toISOString().replace(".000Z", "Z");
+}
+
+/**
+ * One row per expected delivery hour. Unmatched hours have null forecast
+ * and actual values; the analysis response does not identify which source
+ * caused the gap.
+ */
+export function getHourlyObservations(
+    deliveryStart: string,
+    deliveryEnd: string,
+    comparisons: ForecastComparison[],
+): HourlyObservation[] {
+    const expectedHours = getExpectedHours(deliveryStart, deliveryEnd);
+    const start = requireValidDate(deliveryStart, "Delivery start").getTime();
+    const matchedByHour = new Map(
+        comparisons.map((row) => [Date.parse(row.startTime), row]),
+    );
+
+    const observations: HourlyObservation[] = [];
+
+    for (let index = 0; index < expectedHours; index += 1) {
+        const timestamp = start + index * HOUR_MS;
+        const startTime = toHourIso(timestamp);
+        const row = matchedByHour.get(timestamp);
+
+        if (!row) {
+            observations.push({
+                startTime,
+                forecastGeneration: null,
+                actualGeneration: null,
+                error: null,
+                absoluteError: null,
+                publishTime: null,
+                leadTimeHours: null,
+                matched: false,
+            });
+            continue;
+        }
+
+        observations.push({
+            startTime: row.startTime,
+            forecastGeneration: row.forecastGeneration,
+            actualGeneration: row.actualGeneration,
+            error: row.error,
+            absoluteError: row.absoluteError,
+            publishTime: row.publishTime,
+            leadTimeHours: getLeadTimeHours(row.startTime, row.publishTime),
+            matched: true,
+        });
+    }
+
+    return observations;
 }
 
 /** Lead time from forecast publication to delivery, in hours. */

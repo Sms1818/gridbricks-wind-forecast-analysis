@@ -1,12 +1,11 @@
 .chart-panel {
     min-width: 0;
-    margin-top: 28px;
-    padding: 26px;
+    margin: 0;
+    padding: 22px 24px;
     border: 1px solid #e0e3e8;
-    border-radius: 14px;
+    border-radius: 10px;
     background: #fff;
     color: #16181d;
-    box-shadow: 0 2px 8px rgb(22 24 29 / 3%);
 }
 
 .chart-heading {
@@ -23,9 +22,9 @@
 
 .chart-heading h2 {
     margin: 0 0 8px;
-    font-size: clamp(22px, 3vw, 30px);
-    line-height: 1.25;
-    letter-spacing: -0.035em;
+    font-size: 20px;
+    line-height: 1.3;
+    letter-spacing: -0.03em;
 }
 
 .chart-description {
@@ -84,24 +83,11 @@
     background: #0f7b8a;
 }
 
-.chart-coverage-details {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 22px;
-    margin: 18px 0;
-    padding: 13px 15px;
-    border: 1px solid #e0e3e8;
-    border-radius: 8px;
-    background: #f7f8fa;
+.chart-select-hint {
+    margin: 14px 0 0;
     color: #626977;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.6;
-}
-
-.chart-coverage-details strong {
-    color: #16181d;
-    font-weight: 750;
-    font-variant-numeric: tabular-nums;
 }
 
 /* Chart canvas */
@@ -269,7 +255,7 @@
 
 .chart-tooltip-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
 }
 

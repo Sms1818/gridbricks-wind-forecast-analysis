@@ -1,10 +1,12 @@
 
 import { describe, expect, it } from "vitest";
 import {
+    PUBLICATION_LOOKBACK_HOURS,
     areInputsStale,
     buildUtcTimestamp,
     getAnalysisStats,
     getExpectedHours,
+    getHourlyObservations,
     getLeadTimeHours,
     getPublicationWindow,
     getSettlementRange,
@@ -52,21 +54,22 @@ describe("getSettlementRange", () => {
 });
 
 describe("getPublicationWindow", () => {
-    it("uses the provisional 96-hour lookback from delivery start", () => {
+    it("looks back 7 days from delivery start when that precedes the cutoff", () => {
+        expect(PUBLICATION_LOOKBACK_HOURS).toBe(168);
         expect(
             getPublicationWindow(
                 "2026-01-14T06:00:00Z",
                 "2026-01-13T09:00:00Z",
             ),
         ).toEqual({
-            publish_from: "2026-01-10T06:00:00Z",
+            publish_from: "2026-01-07T06:00:00Z",
             publish_to: "2026-01-13T09:00:00Z",
         });
     });
 
-    it("avoids an inverted range when the delivery is over 96 hours after cutoff", () => {
+    it("avoids an inverted range when delivery is more than 7 days after cutoff", () => {
         const result = getPublicationWindow(
-            "2026-01-20T06:00:00Z",
+            "2026-01-31T00:00:00Z",
             "2026-01-14T09:00:00Z",
         );
 
@@ -74,7 +77,7 @@ describe("getPublicationWindow", () => {
             Date.parse(result.publish_to),
         );
         expect(result).toEqual({
-            publish_from: "2026-01-10T09:00:00Z",
+            publish_from: "2026-01-07T09:00:00Z",
             publish_to: "2026-01-14T09:00:00Z",
         });
     });
@@ -147,9 +150,11 @@ describe("getAnalysisStats", () => {
         expect(getAnalysisStats(sampleResponse)).toEqual({
             expectedHours: 4,
             matchedHours: 3,
+            unmatchedHours: 1,
             coveragePercent: 75,
             meanForecast: (120 + 80 + 90) / 3,
             meanActual: 100,
+            meanSignedError: (20 - 20 - 10) / 3,
             worstHours: sampleResponse.comparisons,
         });
     });
@@ -165,11 +170,22 @@ describe("getAnalysisStats", () => {
         expect(getAnalysisStats(empty)).toMatchObject({
             expectedHours: 4,
             matchedHours: 0,
+            unmatchedHours: 4,
             coveragePercent: 0,
             meanForecast: null,
             meanActual: null,
+            meanSignedError: null,
             worstHours: [],
         });
+    });
+
+    it("treats mean signed error as forecast minus actual on matched hours", () => {
+        const stats = getAnalysisStats(sampleResponse);
+
+        expect(stats.meanSignedError).toBeCloseTo(-10 / 3);
+        expect(stats.meanForecast! - stats.meanActual!).toBeCloseTo(
+            stats.meanSignedError!,
+        );
     });
 
     it("ranks worst hours by absolute error without mutating the response", () => {
@@ -178,6 +194,45 @@ describe("getAnalysisStats", () => {
 
         expect(stats.worstHours.map((row) => row.absoluteError)).toEqual([20, 20, 10]);
         expect(sampleResponse.comparisons).toEqual(rows);
+    });
+});
+
+describe("getHourlyObservations", () => {
+    it("includes unmatched hours without inventing forecast or actual values", () => {
+        const observations = getHourlyObservations(
+            sampleResponse.deliveryStart,
+            sampleResponse.deliveryEnd,
+            sampleResponse.comparisons,
+        );
+
+        expect(observations).toHaveLength(4);
+        expect(observations.map((row) => row.matched)).toEqual([
+            true,
+            true,
+            false,
+            true,
+        ]);
+        expect(observations[2]).toMatchObject({
+            startTime: "2026-01-14T02:00:00Z",
+            forecastGeneration: null,
+            actualGeneration: null,
+            error: null,
+            publishTime: null,
+            matched: false,
+        });
+        expect(observations[0]?.leadTimeHours).toBe(19.5);
+    });
+
+    it("does not attribute a coverage gap to forecast or actual absence", () => {
+        const gap = getHourlyObservations(
+            sampleResponse.deliveryStart,
+            sampleResponse.deliveryEnd,
+            sampleResponse.comparisons,
+        )[2];
+
+        expect(gap?.forecastGeneration).toBeNull();
+        expect(gap?.actualGeneration).toBeNull();
+        expect(gap?.matched).toBe(false);
     });
 });
 

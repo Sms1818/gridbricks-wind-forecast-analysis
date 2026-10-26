@@ -232,4 +232,16 @@ describe("runAnalysis", () => {
             status: 502,
         });
     });
+
+    it("reports a network failure without treating it as a successful empty analysis", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+        );
+
+        await expect(runAnalysis(request)).rejects.toMatchObject({
+            kind: "network",
+            message: "Could not reach the analysis service.",
+        });
+    });
 });
