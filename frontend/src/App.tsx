@@ -897,28 +897,19 @@ export default function App() {
                       </p>
                     )}
                   </div>
+
                   <p className="scenario-delta">
-                    {comparisonResult.mae !== null && result.mae !== null ? (
-                      <>
-                        MAE {result.mae < comparisonResult.mae ? 'improved' : result.mae > comparisonResult.mae ? 'increased' : 'was unchanged'} by {formatMw(Math.abs(comparisonResult.mae - result.mae))}
-                        ({comparisonResult.mae === 0 ? 'baseline MAE is zero' : `${(Math.abs(comparisonResult.mae - result.mae) / comparisonResult.mae * 100).toFixed(1)}%`}).{' '}
-                      </>
-                    ) : 'MAE delta unavailable because one or both scenarios have no matched-hour metric. '}
-                    {comparisonResult.rmse !== null && result.rmse !== null ? (
-                      <>
-                        RMSE {result.rmse < comparisonResult.rmse ? 'improved' : result.rmse > comparisonResult.rmse ? 'increased' : 'was unchanged'} by {formatMw(Math.abs(comparisonResult.rmse - result.rmse))}
-                        ({comparisonResult.rmse === 0 ? 'baseline RMSE is zero' : `${(Math.abs(comparisonResult.rmse - result.rmse) / comparisonResult.rmse * 100).toFixed(1)}%`}).{' '}
-                      </>
-                    ) : 'RMSE delta unavailable because one or both scenarios have no matched-hour metric. '}
-                    Forecast comparison: {
-                      (() => {
-                        const counts = compareForecastsByHour(comparisonResult, result)
-                        return `${counts.changed} changed, ${counts.unchanged} unchanged, ${counts.unavailable} unavailable or ambiguous`
-                      })()
-                    }. Metrics are calculated independently over each scenario's matched hours.
-                    {comparisonResult.matchedPeriods !== result.matchedPeriods &&
-                      ' Matched-hour counts differ, so the accuracy metrics are not a strict like-for-like comparison.'}
+                    Forecast comparison:{' '}
+                    {(() => {
+                      const counts = compareForecastsByHour(comparisonResult, result)
+                      return `${counts.changed} changed, ${counts.unchanged} unchanged, ${counts.unavailable} unavailable or ambiguous`
+                    })()}
+                    . Metrics are calculated independently over each scenario's matched hours.
+                    {comparisonResult.matchedPeriods !== result.matchedPeriods
+                      ? ' Matched-hour counts differ, so the accuracy metrics are not directly comparable. No overall improvement or deterioration can be concluded from these figures.'
+                      : ' Matching hour counts make the comparison more consistent, but lower error alone does not establish a better procurement decision.'}
                   </p>
+
                 </div>
               )}
             </section>
