@@ -100,6 +100,54 @@ function formatSignedMw(value: number | null): string {
   return `${value > 0 ? '+' : ''}${formatted} MW`
 }
 
+function compareForecastsByHour(
+  earlier: AnalysisResponse,
+  later: AnalysisResponse,
+): { changed: number; unchanged: number; unavailable: number } {
+  type LatestValue = { publishTime: number; generation: number | null }
+  const latestByHour = (response: AnalysisResponse) => {
+    const latest = new Map<number, LatestValue>()
+    for (const publication of response.publicationTimeline ?? []) {
+      const publishTime = Date.parse(publication.publishTime)
+      const deliveryHour = Date.parse(publication.startTime)
+      const existing = latest.get(deliveryHour)
+      if (!existing || publishTime > existing.publishTime) {
+        latest.set(deliveryHour, {
+          publishTime,
+          generation: publication.forecastGeneration,
+        })
+      } else if (publishTime === existing.publishTime &&
+        publication.forecastGeneration !== existing.generation) {
+        // Conflicting values in the latest publication are not comparable.
+        existing.generation = null
+      }
+    }
+    return latest
+  }
+
+  const earlierLatest = latestByHour(earlier)
+  const laterLatest = latestByHour(later)
+  let changed = 0
+  let unchanged = 0
+  let unavailable = 0
+  const start = Date.parse(earlier.deliveryStart)
+  const end = Date.parse(earlier.deliveryEnd)
+  const hourMs = 60 * 60 * 1000
+
+  for (let hour = start; hour < end; hour += hourMs) {
+    const first = earlierLatest.get(hour)
+    const second = laterLatest.get(hour)
+    if (!first || !second || first.generation === null || second.generation === null) {
+      unavailable++
+    } else if (first.generation !== second.generation) {
+      changed++
+    } else {
+      unchanged++
+    }
+  }
+  return { changed, unchanged, unavailable }
+}
+
 
 function buildRequest(inputs: ScenarioInputs): AnalysisRequest {
   // Validate the form before constructing timestamps. Empty fields otherwise
@@ -849,45 +897,23 @@ export default function App() {
                     )}
                   </div>
                   <p className="scenario-delta">
-                    {comparisonResult.mae !== null && result.mae !== null && (
+                    {comparisonResult.mae !== null && result.mae !== null ? (
                       <>
                         MAE {result.mae < comparisonResult.mae ? 'improved' : result.mae > comparisonResult.mae ? 'increased' : 'was unchanged'} by {formatMw(Math.abs(comparisonResult.mae - result.mae))}
                         ({comparisonResult.mae === 0 ? 'baseline MAE is zero' : `${(Math.abs(comparisonResult.mae - result.mae) / comparisonResult.mae * 100).toFixed(1)}%`}).{' '}
                       </>
-                    )}
-                    {comparisonResult.rmse !== null && result.rmse !== null && (
+                    ) : 'MAE delta unavailable because one or both scenarios have no matched-hour metric. '}
+                    {comparisonResult.rmse !== null && result.rmse !== null ? (
                       <>
                         RMSE {result.rmse < comparisonResult.rmse ? 'improved' : result.rmse > comparisonResult.rmse ? 'increased' : 'was unchanged'} by {formatMw(Math.abs(comparisonResult.rmse - result.rmse))}
                         ({comparisonResult.rmse === 0 ? 'baseline RMSE is zero' : `${(Math.abs(comparisonResult.rmse - result.rmse) / comparisonResult.rmse * 100).toFixed(1)}%`}).{' '}
                       </>
-                    )}
+                    ) : 'RMSE delta unavailable because one or both scenarios have no matched-hour metric. '}
                     Forecast comparison: {
                       (() => {
-                      const latestByHour = (publications: NonNullable<AnalysisResponse['publicationTimeline']>) => {
-                        const latest = new Map<string, NonNullable<AnalysisResponse['publicationTimeline']>[number]>()
-                        for (const publication of publications) {
-                          const existing = latest.get(publication.startTime)
-                          if (!existing || Date.parse(publication.publishTime) > Date.parse(existing.publishTime)) {
-                            latest.set(publication.startTime, publication)
-                          }
-                        }
-                        return latest
-                      }
-                      const earlier = latestByHour(comparisonResult.publicationTimeline ?? [])
-                      const later = latestByHour(result.publicationTimeline ?? [])
-                      let changed = 0
-                      let unchanged = 0
-                      let unavailable = 0
-                      const hours = new Set([...earlier.keys(), ...later.keys()])
-                      for (const hour of hours) {
-                        const a = earlier.get(hour)
-                        const b = later.get(hour)
-                        if (!a || !b) unavailable++
-                        else if (a.forecastGeneration !== b.forecastGeneration) changed++
-                        else unchanged++
-                      }
-                      return `${changed} changed, ${unchanged} unchanged, ${unavailable} unavailable`
-                    })()
+                        const counts = compareForecastsByHour(comparisonResult, result)
+                        return `${counts.changed} changed, ${counts.unchanged} unchanged, ${counts.unavailable} unavailable or ambiguous`
+                      })()
                     }. Metrics are calculated independently over each scenario's matched hours.
                     {comparisonResult.matchedPeriods !== result.matchedPeriods &&
                       ' Matched-hour counts differ, so the accuracy metrics are not a strict like-for-like comparison.'}
