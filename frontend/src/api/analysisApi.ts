@@ -57,6 +57,16 @@ function isValidComparison(value: unknown): value is ForecastComparison {
     );
 }
 
+function isValidPublication(value: unknown): boolean {
+    if (!isRecord(value)) return false;
+
+    return (
+        parseTimestamp(value.startTime) !== null &&
+        parseTimestamp(value.publishTime) !== null &&
+        isFiniteNumber(value.forecastGeneration)
+    );
+}
+
 function isValidWindow(value: unknown): value is {
     from: string;
     to: string;
@@ -91,10 +101,27 @@ function isAnalysisResponse(value: unknown): value is AnalysisResponse {
         Number.isInteger(value.matchedPeriods) &&
         typeof value.matchedPeriods === "number" &&
         value.matchedPeriods >= 0 &&
+        [
+            value.expectedHours,
+            value.missingForecastHours,
+            value.incompleteActualHours,
+            value.ambiguousActualHours,
+            value.conflictingForecastHours,
+        ].every(
+            (count) =>
+                typeof count === "number" &&
+                Number.isInteger(count) &&
+                count >= 0,
+        ) &&
         (value.mae === null ||
             (isFiniteNumber(value.mae) && value.mae >= 0)) &&
+        (value.rmse === null ||
+            (isFiniteNumber(value.rmse) && value.rmse >= 0)) &&
         Array.isArray(value.comparisons) &&
-        value.comparisons.every(isValidComparison)
+        value.comparisons.every(isValidComparison) &&
+        (value.publicationTimeline === undefined ||
+            (Array.isArray(value.publicationTimeline) &&
+                value.publicationTimeline.every(isValidPublication)))
     );
 }
 
@@ -118,13 +145,29 @@ function validateAnalysisResponse(
         );
     }
 
+    const durationHours =
+        (deliveryEnd - deliveryStart) / (60 * 60 * 1000);
+
     if (
-        data.matchedPeriods === 0
-            ? data.mae !== null
-            : data.mae === null
+        !Number.isInteger(durationHours) ||
+        data.expectedHours !== durationHours ||
+        data.missingForecastHours > data.expectedHours ||
+        data.incompleteActualHours > data.expectedHours ||
+        data.ambiguousActualHours > data.expectedHours ||
+        data.conflictingForecastHours > data.expectedHours
     ) {
         throw new Error(
-            "The reported MAE is inconsistent with the matched-period count.",
+            "The data-quality diagnostics are inconsistent with the delivery window.",
+        );
+    }
+
+    if (
+        data.matchedPeriods === 0
+            ? data.mae !== null || data.rmse !== null
+            : data.mae === null || data.rmse === null
+    ) {
+        throw new Error(
+            "The reported MAE/RMSE is inconsistent with the matched-period count.",
         );
     }
 
@@ -159,8 +202,24 @@ function validateAnalysisResponse(
         );
     }
 
+    for (const publication of data.publicationTimeline ?? []) {
+        const startTime = parseTimestamp(publication.startTime)!;
+        const publishTime = parseTimestamp(publication.publishTime)!;
+
+        if (startTime < deliveryStart || startTime >= deliveryEnd) {
+            throw new Error("A timeline record falls outside the delivery window.");
+        }
+        if (publishTime > decisionCutoff) {
+            throw new Error("A timeline publication falls outside the decision cutoff.");
+        }
+        if (publishTime < publicationFrom || publishTime > publicationTo) {
+            throw new Error("A timeline publication falls outside the publication window.");
+        }
+    }
+
     const seenDeliveryHours = new Set<number>();
     let sumAbsoluteError = 0;
+    let sumSquaredError = 0;
 
     for (const comparison of data.comparisons) {
         const startTime = parseTimestamp(comparison.startTime)!;
@@ -220,6 +279,7 @@ function validateAnalysisResponse(
         }
 
         sumAbsoluteError += comparison.absoluteError;
+        sumSquaredError += comparison.error ** 2;
     }
 
     if (data.mae !== null) {
@@ -228,6 +288,18 @@ function validateAnalysisResponse(
         if (Math.abs(data.mae - calculatedMae) > 0.01) {
             throw new Error(
                 "The reported MAE does not agree with the comparison rows.",
+            );
+        }
+    }
+
+    if (data.rmse !== null) {
+        const calculatedRmse = Math.sqrt(
+            sumSquaredError / data.matchedPeriods,
+        );
+
+        if (Math.abs(data.rmse - calculatedRmse) > 0.01) {
+            throw new Error(
+                "The reported RMSE does not agree with the comparison rows.",
             );
         }
     }

@@ -29,6 +29,12 @@ class ComparisonResponse(BaseModel):
     error: float
     absoluteError: float
 
+class PublicationTimelineResponse(BaseModel):
+    startTime: str
+    publishTime: str
+    forecastGeneration: float
+
+
 class WindowResponse(BaseModel):
     from_: str = Field(alias="from")
     to: str
@@ -40,8 +46,15 @@ class ForecastAccuracyResponse(BaseModel):
     deliveryStart: str
     deliveryEnd: str
     matchedPeriods: int
+    expectedHours: Optional[int]
+    missingForecastHours: Optional[int]
+    incompleteActualHours: Optional[int]
+    ambiguousActualHours: Optional[int]
+    conflictingForecastHours: Optional[int]
     mae: Optional[float]
+    rmse: Optional[float]
     comparisons: list[ComparisonResponse]
+    publicationTimeline: list[PublicationTimelineResponse]
 
 
 @app.get("/health")

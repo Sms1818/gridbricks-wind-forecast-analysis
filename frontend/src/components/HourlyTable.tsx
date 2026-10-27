@@ -89,12 +89,12 @@ export default function HourlyTable({
     }
   }, [selectedHour])
 
+
   const sortedRows = useMemo(() => {
     return [...observations].sort((a, b) => {
-      const unmatchedDelta = Number(a.matched) - Number(b.matched)
-
-      if (sortKey !== 'startTime' && unmatchedDelta !== 0) {
-        return unmatchedDelta
+      // Keep unmatched hours at the bottom for every sort order.
+      if (sortKey !== 'startTime' && a.matched !== b.matched) {
+        return a.matched ? -1 : 1
       }
 
       let comparison = 0
@@ -102,35 +102,97 @@ export default function HourlyTable({
       switch (sortKey) {
         case 'forecastGeneration':
           comparison =
-            (a.forecastGeneration ?? 0) - (b.forecastGeneration ?? 0)
+            a.forecastGeneration === null
+              ? b.forecastGeneration === null ? 0 : 1
+              : b.forecastGeneration === null
+                ? -1
+                : a.forecastGeneration - b.forecastGeneration
           break
+
         case 'actualGeneration':
           comparison =
-            (a.actualGeneration ?? 0) - (b.actualGeneration ?? 0)
+            a.actualGeneration === null
+              ? b.actualGeneration === null ? 0 : 1
+              : b.actualGeneration === null
+                ? -1
+                : a.actualGeneration - b.actualGeneration
           break
+
         case 'error':
-          comparison = (a.error ?? 0) - (b.error ?? 0)
-          break
-        case 'absoluteError':
-          comparison = (a.absoluteError ?? 0) - (b.absoluteError ?? 0)
-          break
-        case 'publishTime':
           comparison =
-            Date.parse(a.publishTime ?? '') - Date.parse(b.publishTime ?? '')
+            a.error === null
+              ? b.error === null ? 0 : 1
+              : b.error === null
+                ? -1
+                : a.error - b.error
           break
+
+        case 'absoluteError':
+          comparison =
+            a.absoluteError === null
+              ? b.absoluteError === null ? 0 : 1
+              : b.absoluteError === null
+                ? -1
+                : a.absoluteError - b.absoluteError
+          break
+
+        case 'publishTime': {
+          const aTime = a.publishTime ? Date.parse(a.publishTime) : NaN
+          const bTime = b.publishTime ? Date.parse(b.publishTime) : NaN
+
+          comparison =
+            Number.isNaN(aTime)
+              ? Number.isNaN(bTime) ? 0 : 1
+              : Number.isNaN(bTime)
+                ? -1
+                : aTime - bTime
+          break
+        }
+
         case 'leadTime':
-          comparison = (a.leadTimeHours ?? 0) - (b.leadTimeHours ?? 0)
+          comparison =
+            a.leadTimeHours === null
+              ? b.leadTimeHours === null ? 0 : 1
+              : b.leadTimeHours === null
+                ? -1
+                : a.leadTimeHours - b.leadTimeHours
           break
+
         default:
           comparison = Date.parse(a.startTime) - Date.parse(b.startTime)
       }
 
-      return (
-        (descending ? -comparison : comparison) ||
-        a.startTime.localeCompare(b.startTime)
-      )
+      // Reverse valid values for descending order, but keep missing
+      // values at the bottom. Use delivery time to break ties consistently.
+      if (sortKey !== 'startTime' && comparison !== 0) {
+        const aMissing =
+          (sortKey === 'forecastGeneration' && a.forecastGeneration === null) ||
+          (sortKey === 'actualGeneration' && a.actualGeneration === null) ||
+          (sortKey === 'error' && a.error === null) ||
+          (sortKey === 'absoluteError' && a.absoluteError === null) ||
+          (sortKey === 'publishTime' && !a.publishTime) ||
+          (sortKey === 'leadTime' && a.leadTimeHours === null)
+
+        const bMissing =
+          (sortKey === 'forecastGeneration' && b.forecastGeneration === null) ||
+          (sortKey === 'actualGeneration' && b.actualGeneration === null) ||
+          (sortKey === 'error' && b.error === null) ||
+          (sortKey === 'absoluteError' && b.absoluteError === null) ||
+          (sortKey === 'publishTime' && !b.publishTime) ||
+          (sortKey === 'leadTime' && b.leadTimeHours === null)
+
+        if (aMissing !== bMissing) {
+          return aMissing ? 1 : -1
+        }
+
+        return (descending ? -comparison : comparison) ||
+          a.startTime.localeCompare(b.startTime)
+      }
+
+      return comparison || a.startTime.localeCompare(b.startTime)
     })
   }, [observations, sortKey, descending])
+
 
   function changeSort(key: SortKey) {
     if (sortKey === key) {
@@ -155,9 +217,8 @@ export default function HourlyTable({
           type="button"
           className="table-sort-button"
           onClick={() => changeSort(key)}
-          aria-label={`Sort by ${label}${
-            active ? `, ${descending ? 'descending' : 'ascending'}` : ''
-          }`}
+          aria-label={`Sort by ${label}${active ? `, ${descending ? 'descending' : 'ascending'}` : ''
+            }`}
         >
           {label}
           {active ? (descending ? ' ↓' : ' ↑') : ''}
@@ -181,17 +242,17 @@ export default function HourlyTable({
     const values = sortedRows
       .filter(row => row.matched)
       .map(row => [
-      row.startTime,
-      row.forecastGeneration,
-      row.actualGeneration,
-      row.error,
-      row.absoluteError,
-      row.publishTime,
-      row.publishTime
-        ? getLeadTimeHours(row.startTime, row.publishTime).toFixed(2)
-        : '',
-      decisionCutoff,
-    ])
+        row.startTime,
+        row.forecastGeneration,
+        row.actualGeneration,
+        row.error,
+        row.absoluteError,
+        row.publishTime,
+        row.publishTime
+          ? getLeadTimeHours(row.startTime, row.publishTime).toFixed(2)
+          : '',
+        decisionCutoff,
+      ])
 
     const csv = [headers, ...values]
       .map(record =>
@@ -222,10 +283,15 @@ export default function HourlyTable({
         <p className="eyebrow">DELIVERY-HOUR EVIDENCE</p>
         <h2 id="hourly-comparison-heading">Hourly comparison</h2>
         <p>
-          Every expected delivery hour is listed. Hours without a matched
+          Each delivery hour uses the latest forecast published at or before
+          the decision cutoff. A single publication can contain forecasts for
+          many delivery hours, so publication timestamps may repeat. Later
+          publications are excluded to avoid using information that was not
+          available when the decision was made. Hours without a matched
           forecast-and-actual pair are shown as gaps; the response does not
           identify whether the forecast, the actual reading, or both are
-          missing. All timestamps are UTC.
+          missing. All timestamps are UTC. Lead time is the interval between
+          forecast publication and the start of the delivery hour.
         </p>
       </div>
 

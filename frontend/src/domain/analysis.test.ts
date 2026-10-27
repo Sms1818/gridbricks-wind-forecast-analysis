@@ -116,7 +116,13 @@ const sampleResponse: AnalysisResponse = {
     deliveryStart: "2026-01-14T00:00:00Z",
     deliveryEnd: "2026-01-14T04:00:00Z",
     matchedPeriods: 3,
+    expectedHours: 4,
+    missingForecastHours: 1,
+    incompleteActualHours: 1,
+    ambiguousActualHours: 0,
+    conflictingForecastHours: 0,
     mae: 10,
+    rmse: 17.32,
     comparisons: [
         {
             startTime: "2026-01-14T00:00:00Z",
@@ -163,7 +169,13 @@ describe("getAnalysisStats", () => {
         const empty = {
             ...sampleResponse,
             matchedPeriods: 0,
+            expectedHours: 4,
+            missingForecastHours: 4,
+            incompleteActualHours: 4,
+            ambiguousActualHours: 0,
+            conflictingForecastHours: 0,
             mae: null,
+            rmse: null,
             comparisons: [],
         };
 

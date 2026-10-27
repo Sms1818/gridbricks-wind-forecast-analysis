@@ -1,21 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+
 :root {
-  font-family: Inter, "Segoe UI", sans-serif;
-  color: #16181d;
-  background: #f5f6f8;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
+
+  --bg: #06110C;
+  --bg-elevated: #0B1711;
+  --surface: #171717;
+  --surface-raised: #1D211E;
+
+  --text: #F1F4F1;
+  --text-muted: #AAB8AF;
+  --text-subtle: #819187;
+
+  --border: #303A33;
+  --border-soft: #223229;
+
+  --accent: #A31C1B;
+  --accent-hover: #BE2926;
+  --accent-soft: rgba(163, 28, 27, 0.14);
+
+  --positive: #5EE6AD;
+  --positive-soft: rgba(94, 230, 173, 0.12);
+
+  --danger: #E94747;
+  --danger-soft: rgba(163, 28, 27, 0.15);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
 }
+
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--color-background);
+  scroll-behavior: smooth;
+}
+
 body {
-  margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 78% 0%, rgba(24, 89, 68, 0.2), transparent 34rem),
+    radial-gradient(ellipse at 0% 48%, rgba(16, 62, 51, 0.14), transparent 30rem),
+    var(--color-background);
 }
 
 button,
@@ -26,7 +61,22 @@ select {
 
 button:focus-visible,
 input:focus-visible,
-select:focus-visible {
-  outline: 3px solid #b7791f;
+select:focus-visible,
+tr:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #68e6ac;
   outline-offset: 3px;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  color: #06140f;
+  background: #68e6ac;
+}
+
+#root {
+  min-height: 100vh;
 }

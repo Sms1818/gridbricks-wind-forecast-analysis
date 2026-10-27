@@ -1,5 +1,5 @@
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import httpx
 
@@ -156,9 +156,25 @@ def calculate_forecast_accuracy(
             (published_at, forecast)
         )
 
+    # Preserve eligible forecast publication history for the timeline.
+    publication_timeline = []
+
+    for target_time, candidates in forecasts_by_time.items():
+        for published_at, forecast in candidates:
+            publication_timeline.append({
+                "startTime": target_time.isoformat(),
+                "publishTime": published_at.isoformat(),
+                "forecastGeneration": float(forecast["generation"]),
+            })
+
+    publication_timeline.sort(
+        key=lambda item: (item["startTime"], item["publishTime"])
+    )
+
     # Select the latest publication for each delivery timestamp.
     # If the latest publication has conflicting generation values,
     # exclude that delivery timestamp rather than choosing arbitrarily.
+    conflicting_forecast_hours = 0
     latest_forecast_by_time = {}
 
     for target_time, candidates in forecasts_by_time.items():
@@ -182,6 +198,8 @@ def calculate_forecast_accuracy(
 
         if len(generations) == 1:
             latest_forecast_by_time[target_time] = latest_candidates[0]
+        else:
+            conflicting_forecast_hours += 1
 
     # --------------------------------------------------
     # 2. Collect valid FUELHH actual readings by timestamp.
@@ -235,8 +253,29 @@ def calculate_forecast_accuracy(
     # 3. Aggregate half-hour actuals into complete hourly values.
     # --------------------------------------------------
 
+    incomplete_actual_hours = 0
+    ambiguous_actual_hours = 0
+
     if start is not None and end is not None:
         actual_by_time = {}
+
+        expected_hour_count = int((end - start).total_seconds() // 3600)
+        expected_hours = [
+            start + timedelta(hours=i)
+            for i in range(expected_hour_count)
+        ]
+
+        for hour in expected_hours:
+            first_values = actual_values_by_time.get(hour, [])
+            second_values = actual_values_by_time.get(
+                hour.replace(minute=30), []
+            )
+
+            if not first_values or not second_values:
+                incomplete_actual_hours += 1
+
+            if len(first_values) > 1 or len(second_values) > 1:
+                ambiguous_actual_hours += 1
 
         hours = {
             timestamp.replace(minute=0, second=0, microsecond=0)
@@ -295,19 +334,56 @@ def calculate_forecast_accuracy(
             "deliveryStart": delivery_start,
             "deliveryEnd": delivery_end,
             "matchedPeriods": 0,
+            "expectedHours": expected_hour_count if start is not None else None,
+            "missingForecastHours": (
+                max(0, expected_hour_count - len(latest_forecast_by_time))
+                if start is not None else None
+            ),
+            "incompleteActualHours": (
+                incomplete_actual_hours if start is not None else None
+            ),
+            "ambiguousActualHours": (
+                ambiguous_actual_hours if start is not None else None
+            ),
+            "conflictingForecastHours": (
+                conflicting_forecast_hours if start is not None else None
+            ),
             "mae": None,
+            "rmse": None,
             "comparisons": [],
+            "publicationTimeline": publication_timeline,
         }
 
     mae = sum(
         item["absoluteError"] for item in comparisons
     ) / len(comparisons)
 
+    rmse = (
+        sum(item["error"] ** 2 for item in comparisons)
+        / len(comparisons)
+    ) ** 0.5
+
     return {
         "decisionCutoff": decision_cutoff,
         "deliveryStart": delivery_start,
         "deliveryEnd": delivery_end,
         "matchedPeriods": len(comparisons),
+        "expectedHours": expected_hour_count if start is not None else None,
+        "missingForecastHours": (
+            max(0, expected_hour_count - len(latest_forecast_by_time))
+            if start is not None else None
+        ),
+        "incompleteActualHours": (
+            incomplete_actual_hours if start is not None else None
+        ),
+        "ambiguousActualHours": (
+            ambiguous_actual_hours if start is not None else None
+        ),
+        "conflictingForecastHours": (
+            conflicting_forecast_hours if start is not None else None
+        ),
         "mae": round(mae, 2),
+        "rmse": round(rmse, 2),
         "comparisons": comparisons,
+        "publicationTimeline": publication_timeline,
     }

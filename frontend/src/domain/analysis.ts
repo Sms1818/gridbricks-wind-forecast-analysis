@@ -18,6 +18,12 @@ export interface ForecastComparison {
     absoluteError: number;
 }
 
+export interface ForecastPublication {
+    startTime: string;
+    publishTime: string;
+    forecastGeneration: number;
+}
+
 export interface AnalysisResponse {
     publicationWindow: { from: string; to: string };
     settlementWindow: { from: string; to: string };
@@ -25,8 +31,15 @@ export interface AnalysisResponse {
     deliveryStart: string;
     deliveryEnd: string;
     matchedPeriods: number;
+    expectedHours: number;
+    missingForecastHours: number;
+    incompleteActualHours: number;
+    ambiguousActualHours: number;
+    conflictingForecastHours: number;
     mae: number | null;
+    rmse: number | null;
     comparisons: ForecastComparison[];
+    publicationTimeline?: ForecastPublication[];
 }
 
 export interface AnalysisStats {

@@ -33,7 +33,13 @@ const validResponse: AnalysisResponse = {
     deliveryStart: request.delivery_start,
     deliveryEnd: request.delivery_end,
     matchedPeriods: 1,
+    expectedHours: 24,
+    missingForecastHours: 23,
+    incompleteActualHours: 23,
+    ambiguousActualHours: 0,
+    conflictingForecastHours: 0,
     mae: 20,
+    rmse: 20,
     comparisons: [
         {
             startTime: "2026-01-14T00:00:00Z",
@@ -132,6 +138,17 @@ describe("runAnalysis", () => {
         );
     });
 
+    it("rejects an incorrect RMSE", async () => {
+        mockFetch({
+            ...validResponse,
+            rmse: 25,
+        });
+
+        await expect(runAnalysis(request)).rejects.toThrow(
+            "reported RMSE does not agree",
+        );
+    });
+
     it("rejects duplicate delivery hours", async () => {
         const row = validResponse.comparisons[0];
 
@@ -173,7 +190,13 @@ describe("runAnalysis", () => {
         const emptyResponse: AnalysisResponse = {
             ...validResponse,
             matchedPeriods: 0,
+            expectedHours: 24,
+            missingForecastHours: 23,
+            incompleteActualHours: 23,
+            ambiguousActualHours: 0,
+            conflictingForecastHours: 0,
             mae: null,
+            rmse: null,
             comparisons: [],
         };
 
@@ -189,7 +212,7 @@ describe("runAnalysis", () => {
         });
 
         await expect(runAnalysis(request)).rejects.toThrow(
-            "MAE is inconsistent",
+            "MAE/RMSE is inconsistent with the matched-period count",
         );
     });
 

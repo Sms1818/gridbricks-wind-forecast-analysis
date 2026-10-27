@@ -449,3 +449,252 @@
         animation-duration: 0.01ms !important;
     }
 }
+/* ==========================================
+   WIND REVIEW — dark chart theme
+   ========================================== */
+
+.chart-panel {
+  margin: 0;
+  padding: 28px;
+  color: #edf6ef;
+  background: #0b1912;
+  border: 1px solid rgba(94, 230, 173, 0.18);
+  border-radius: 16px;
+}
+
+.chart-heading {
+  gap: 24px;
+  margin-bottom: 22px;
+}
+
+.chart-heading h2 {
+  color: #eff7f1;
+  font-size: clamp(21px, 2vw, 27px);
+  letter-spacing: -0.035em;
+}
+
+.chart-description {
+  color: #a6b9ac;
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.chart-coverage {
+  color: #5ee6ad;
+  font-size: 12px;
+}
+
+.chart-legend {
+  color: #b6c7bb;
+  gap: 12px 16px;
+}
+
+.legend-forecast {
+  background: #5ee6ad;
+}
+
+.legend-actual {
+  background: #d4ddd7;
+}
+
+.legend-error {
+  background: #e34c43;
+}
+
+.legend-underforecast {
+  background: #26b8ad;
+}
+
+.chart-select-hint,
+.chart-empty {
+  color: #a6b9ac;
+}
+
+/* Chart canvas */
+.chart-scroll {
+  border-radius: 12px;
+  scrollbar-color: #355b46 transparent;
+}
+
+.chart-scroll:focus-visible {
+  outline-color: #5ee6ad;
+}
+
+.forecast-svg {
+  min-width: 700px;
+}
+
+.chart-gridline {
+  stroke: rgba(205, 224, 211, 0.16);
+}
+
+.chart-divider {
+  stroke: rgba(205, 224, 211, 0.22);
+}
+
+.chart-zero-line {
+  stroke: #83968a;
+}
+
+.chart-axis-label {
+  fill: #91a79a;
+}
+
+.chart-axis-title {
+  fill: #c4d5c9;
+}
+
+.forecast-line {
+  stroke: #5ee6ad;
+  stroke-width: 2.8;
+}
+
+.actual-line {
+  stroke: #d4ddd7;
+  stroke-width: 2.5;
+}
+
+.forecast-point {
+  fill: #5ee6ad;
+  stroke: #0b1912;
+}
+
+.actual-point {
+  fill: #d4ddd7;
+  stroke: #0b1912;
+}
+
+.chart-hour-active .forecast-point,
+.chart-hour-active .actual-point,
+.chart-hour:focus-visible .forecast-point,
+.chart-hour:focus-visible .actual-point {
+  stroke: #f0b64b;
+  stroke-width: 3;
+}
+
+.error-bar-positive {
+  fill: #e34c43;
+}
+
+.error-bar-negative {
+  fill: #26b8ad;
+}
+
+.error-bar-neutral {
+  fill: #83968a;
+}
+
+.chart-missing-mark {
+  fill: #9aada0;
+}
+
+/* Selected-hour details */
+.chart-tooltip {
+  margin-top: 20px;
+  padding: 22px;
+  color: #edf6ef;
+  background: linear-gradient(145deg, #14271d, #0e1d14);
+  border: 1px solid rgba(94, 230, 173, 0.2);
+  border-radius: 12px;
+}
+
+.chart-tooltip-heading {
+  margin-bottom: 20px;
+}
+
+.chart-tooltip-heading strong {
+  color: #f0f7f2;
+  font-size: 15px;
+}
+
+.chart-tooltip-heading span {
+  padding: 6px 10px;
+  color: #c9f7de;
+  background: rgba(94, 230, 173, 0.1);
+  border: 1px solid rgba(94, 230, 173, 0.18);
+  border-radius: 6px;
+}
+
+.chart-tooltip-grid {
+  gap: 22px 18px;
+}
+
+.chart-tooltip-grid div {
+  gap: 8px;
+}
+
+.chart-tooltip-grid span {
+  color: #91a79a;
+}
+
+.chart-tooltip-grid strong {
+  color: #edf6ef;
+  font-size: 14px;
+}
+
+.chart-tooltip-explanation {
+  color: #b5c7ba;
+  border-top-color: rgba(205, 224, 211, 0.16);
+}
+
+/* Chart notes and expandable data */
+.chart-footnote {
+  color: #91a79a;
+  line-height: 1.8;
+}
+
+.chart-data {
+  border-top-color: rgba(205, 224, 211, 0.16);
+}
+
+.chart-data summary {
+  color: #5ee6ad;
+}
+
+.chart-data summary:hover {
+  color: #a0f4cc;
+}
+
+.chart-data summary:focus-visible {
+  outline-color: #5ee6ad;
+}
+
+.chart-data th,
+.chart-data td {
+  border-bottom-color: rgba(205, 224, 211, 0.1);
+}
+
+.chart-data th {
+  color: #b6c9bc;
+  background: #17291f;
+}
+
+.chart-data td {
+  color: #dce9df;
+}
+
+.chart-data tbody tr:hover {
+  background: rgba(94, 230, 173, 0.06);
+}
+
+/* Responsive chart */
+@media (max-width: 900px) {
+  .chart-heading {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .chart-panel {
+    padding: 19px 14px;
+  }
+
+  .chart-heading h2 {
+    font-size: 22px;
+  }
+
+  .chart-tooltip {
+    padding: 16px;
+  }
+}

@@ -77,6 +77,9 @@ def test_calculates_mae_correctly(forecasts, actuals):
     assert result["matchedPeriods"] == 2
     assert result["mae"] == 750
 
+    # RMSE = sqrt((500² + 1000²) / 2) = 790.57
+    assert result["rmse"] == 790.57
+
 
 def test_returns_decision_cutoff(forecasts, actuals):
     result = calculate_forecast_accuracy(forecasts, actuals, CUTOFF)
@@ -97,6 +100,7 @@ def test_ignores_non_wind_actuals(forecasts):
 
     assert result["matchedPeriods"] == 0
     assert result["mae"] is None
+    assert result["rmse"] is None
     assert result["comparisons"] == []
 
 
@@ -436,3 +440,148 @@ def test_excludes_delivery_hour_when_both_actual_readings_are_missing():
         "2026-01-11T00:00:00+00:00"
     )
     assert result["mae"] == 10
+
+
+def test_reports_expected_hours_and_missing_forecasts():
+    result = calculate_forecast_accuracy(
+        [],
+        [],
+        CUTOFF,
+        delivery_start="2026-01-11T00:00:00Z",
+        delivery_end="2026-01-11T03:00:00Z",
+    )
+
+    assert result["expectedHours"] == 3
+    assert result["missingForecastHours"] == 3
+    assert result["incompleteActualHours"] == 3
+    assert result["ambiguousActualHours"] == 0
+    assert result["conflictingForecastHours"] == 0
+
+
+def test_reports_incomplete_actual_hours():
+    forecasts = [
+        {
+            "startTime": "2026-01-11T00:00:00Z",
+            "publishTime": "2026-01-10T09:30:00Z",
+            "generation": 100,
+        }
+    ]
+    actuals = [
+        {
+            "startTime": "2026-01-11T00:00:00Z",
+            "fuelType": "WIND",
+            "generation": 80,
+        }
+    ]
+
+    result = calculate_forecast_accuracy(
+        forecasts,
+        actuals,
+        CUTOFF,
+        delivery_start="2026-01-11T00:00:00Z",
+        delivery_end="2026-01-11T01:00:00Z",
+    )
+
+    assert result["expectedHours"] == 1
+    assert result["incompleteActualHours"] == 1
+    assert result["matchedPeriods"] == 0
+
+
+def test_reports_ambiguous_actual_hours():
+    forecasts = [
+        {
+            "startTime": "2026-01-11T00:00:00Z",
+            "publishTime": "2026-01-10T09:30:00Z",
+            "generation": 100,
+        }
+    ]
+    actuals = [
+        {
+            "startTime": "2026-01-11T00:00:00Z",
+            "fuelType": "WIND",
+            "generation": 80,
+        },
+        {
+            "startTime": "2026-01-11T00:00:00Z",
+            "fuelType": "WIND",
+            "generation": 82,
+        },
+        {
+            "startTime": "2026-01-11T00:30:00Z",
+            "fuelType": "WIND",
+            "generation": 100,
+        },
+    ]
+
+    result = calculate_forecast_accuracy(
+        forecasts,
+        actuals,
+        CUTOFF,
+        delivery_start="2026-01-11T00:00:00Z",
+        delivery_end="2026-01-11T01:00:00Z",
+    )
+
+    assert result["ambiguousActualHours"] == 1
+    assert result["incompleteActualHours"] == 0
+    assert result["matchedPeriods"] == 0
+
+
+def test_reports_conflicting_latest_forecast_publications():
+    forecasts = [
+        {
+            "startTime": "2026-01-11T00:00:00Z",
+            "publishTime": "2026-01-10T09:30:00Z",
+            "generation": 100,
+        },
+        {
+            "startTime": "2026-01-11T00:00:00Z",
+            "publishTime": "2026-01-10T09:30:00Z",
+            "generation": 120,
+        },
+    ]
+    actuals = [
+        {
+            "startTime": "2026-01-11T00:00:00Z",
+            "fuelType": "WIND",
+            "generation": 80,
+        },
+        {
+            "startTime": "2026-01-11T00:30:00Z",
+            "fuelType": "WIND",
+            "generation": 100,
+        },
+    ]
+
+    result = calculate_forecast_accuracy(
+        forecasts,
+        actuals,
+        CUTOFF,
+        delivery_start="2026-01-11T00:00:00Z",
+        delivery_end="2026-01-11T01:00:00Z",
+    )
+
+    assert result["conflictingForecastHours"] == 1
+    assert result["missingForecastHours"] == 1
+    assert result["matchedPeriods"] == 0
+
+
+def test_publication_timeline_preserves_history_and_respects_cutoff(
+    forecasts, actuals
+):
+    result = calculate_forecast_accuracy(forecasts, actuals, CUTOFF)
+
+    timeline = result["publicationTimeline"]
+
+    first_hour = [
+        item for item in timeline
+        if item["startTime"] == "2026-01-10T10:00:00+00:00"
+    ]
+
+    assert [
+        item["forecastGeneration"] for item in first_hour
+    ] == [12000.0, 11500.0]
+
+    assert all(
+        item["publishTime"] <= CUTOFF
+        for item in timeline
+    )
