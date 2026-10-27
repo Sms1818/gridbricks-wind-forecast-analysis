@@ -24,13 +24,13 @@ The result is a more transparent view of historical forecast accuracy and the ch
 
 ## Features
 
-- **Cutoff-aware analysis** — Evaluate forecasts using only publications available at or before the selected decision time.
-- **Forecast accuracy metrics** — Calculate Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE) over valid matched hours.
-- **Data-quality diagnostics** — Identify missing forecasts, incomplete or ambiguous actual readings, and conflicting forecast values.
-- **Forecast versus actuals** — Inspect hourly generation values and compare forecasts with observed wind generation.
-- **Decision scenario comparison** — Compare two cutoffs over the same delivery window, including metric differences and changes in forecast values.
-- **CSV export** — Export matched analysis rows for further investigation.
-- **Explicit missing-data handling** — Keep unavailable or invalid observations distinct from genuine zero-generation values.
+- **Cutoff-aware analysis:** Evaluate forecasts using only publications available at or before the selected decision time.
+- **Forecast accuracy metrics:** Calculate Mean Absolute Error (MAE) and Root Mean Squared Error (RMSE) over valid matched hours.
+- **Data-quality diagnostics:** Identify missing forecasts, incomplete or ambiguous actual readings, and conflicting forecast values.
+- **Forecast versus actuals:** Inspect hourly generation values and compare forecasts with observed wind generation.
+- **Decision scenario comparison:** Compare two cutoffs over the same delivery window, including metric differences and changes in forecast values.
+- **CSV export:** Export matched analysis rows for further investigation.
+- **Explicit missing-data handling:** Keep unavailable or invalid observations distinct from genuine zero-generation values.
 
 ## How it works
 
@@ -72,7 +72,7 @@ The historical analysis dataset covers **1–31 January 2026**.
 
 ## Methodology
 
-### 1. Forecast Selection at Decision Time
+### 1. Forecast selection at decision time
 
 For a selected decision cutoff, only forecast publications released at or before that time are eligible for analysis:
 
@@ -84,7 +84,7 @@ For each delivery timestamp, the latest eligible publication is selected. Public
 
 Conflicting values associated with the latest publication are treated as a data-quality issue rather than resolved through an arbitrary selection.
 
-### 2. Constructing Hourly Actual Generation
+### 2. Constructing hourly actual generation
 
 Actual generation is provided at half-hourly resolution. An hourly observation is accepted only when the hour has exactly one reading at `:00` and exactly one reading at `:30`.
 
@@ -94,7 +94,7 @@ Hourly actual = (Reading at :00 + Reading at :30) / 2
 
 Missing readings make the hour incomplete. Duplicate readings make it ambiguous. Neither condition is silently converted into zero or accepted as a valid hourly observation.
 
-### 3. Matching and Accuracy Metrics
+### 3. Matching and accuracy metrics
 
 Forecasts and actuals are matched by delivery hour. Only valid matched observations contribute to the accuracy metrics.
 
@@ -107,7 +107,8 @@ MAE = Sum of absolute forecast errors / Number of valid matched hours
 **Root Mean Squared Error (RMSE)**
 
 ```text
-RMSE = Square root of (Sum of squared forecast errors / Number of valid matched hours)
+RMSE = Square root of
+       (Sum of squared forecast errors / Number of valid matched hours)
 ```
 
 Here, each forecast error is the forecast generation minus the actual generation for a matched hour. The number of valid matched hours is the number of observations included in the calculation.
@@ -152,6 +153,85 @@ Metric differences must be interpreted alongside matched-hour counts and coverag
 | Containerization | Docker, Docker Compose |
 | Web server and reverse proxy | Nginx |
 
+## Project structure
+
+The following tree documents the main application files and directories. Generated files, local environments, downloaded dependency wheels, and temporary backup files are omitted.
+
+```text
+.
+├── backend/
+│   ├── services/
+│   │   ├── __init__.py
+│   │   └── elexon.py
+│   ├── main.py
+│   ├── requirements.txt
+│   ├── requirements-dev.txt
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── test_accuracy.py
+│   ├── test_api.py
+│   ├── test_api_errors.py
+│   ├── test_elexon.py
+│   ├── check_agws.py
+│   ├── check_forecast_actuals.py
+│   └── inspect_forecasts.py
+├── frontend/
+│   ├── public/
+│   │   ├── favicon.svg
+│   │   ├── icons.svg
+│   │   └── images/
+│   ├── src/
+│   │   ├── api/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   ├── domain/
+│   │   ├── App.tsx
+│   │   ├── App.css
+│   │   ├── index.css
+│   │   └── main.tsx
+│   ├── index.html
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── vite.config.ts
+│   ├── tsconfig.json
+│   ├── tsconfig.app.json
+│   ├── tsconfig.node.json
+│   ├── eslint.config.js
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   └── nginx.conf
+├── compose.yaml
+├── .dockerignore
+├── .gitignore
+├── vercel.json
+└── README.md
+```
+
+### Key files and directories
+
+- `backend/main.py`: FastAPI application and API endpoints for wind forecasts, actual generation, and forecast-accuracy analysis.
+- `backend/services/elexon.py`: Integration with the Elexon BMRS data API.
+- `backend/test_accuracy.py`: Tests for forecast selection, matching, and accuracy calculations.
+- `backend/test_api.py` and `backend/test_api_errors.py`: API endpoint and error-handling tests.
+- `backend/test_elexon.py`: Tests for Elexon data integration.
+- `backend/requirements.txt`: Backend runtime dependencies.
+- `backend/requirements-dev.txt`: Backend development dependencies.
+- `frontend/src/api/`: Frontend API integration.
+- `frontend/src/components/`: Reusable user-interface components.
+- `frontend/src/domain/`: Domain logic and types.
+- `frontend/src/App.tsx`: Main React application.
+- `frontend/src/main.tsx`: Frontend entry point.
+- `frontend/package.json`: Frontend dependencies and scripts.
+- `frontend/vite.config.ts`: Vite development and build configuration.
+- `frontend/Dockerfile`: Frontend production build configuration.
+- `frontend/nginx.conf`: Nginx static hosting and API reverse-proxy configuration.
+- `compose.yaml`: Configuration for running the frontend and backend with Docker Compose.
+- `vercel.json`: Vercel deployment and request-routing configuration.
+- `.gitignore`: Files and directories excluded from Git.
+- `.dockerignore`: Files excluded from Docker build contexts.
+
+The backend retrieves and processes historical wind-generation forecast and actual-generation data. The frontend provides the analysis interface, visualization, scenario comparison, and CSV export. Docker Compose runs the frontend and backend together locally, while Vercel hosts the deployed application.
+
 ## Getting started
 
 ### Prerequisites
@@ -163,11 +243,13 @@ Metric differences must be interpreted alongside matched-hour counts and coverag
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Sms1818/gridbricks-wind-forecast-analysis.git
-cd gridbricks-wind-forecast-analysis
+git clone https://github.com/Sms1818/smwsdiajf.git
+cd smwsdiajf
 ```
 
 ### 2. Start the backend
+
+From the repository root:
 
 ```bash
 cd backend
@@ -183,10 +265,11 @@ The backend runs using Uvicorn. Keep this terminal open while developing.
 
 ### 3. Start the frontend
 
-In a separate terminal, from the repository root:
+Open a separate terminal and navigate to the repository root:
 
 ```bash
 cd frontend
+
 npm install
 npm run dev
 ```
@@ -210,8 +293,8 @@ WindLens runs as two Docker containers:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Sms1818/gridbricks-wind-forecast-analysis.git
-cd gridbricks-wind-forecast-analysis
+git clone https://github.com/Sms1818/smwsdiajf.git
+cd smwsdiajf
 ```
 
 ### 2. Build and start the application
@@ -292,7 +375,6 @@ The application retrieves wind-generation forecast publications and historical a
 
 The deployed application should be tested for API connectivity and successful forecast-accuracy analysis before submission.
 
-
 ## Testing
 
 The following test results have been recorded during development:
@@ -314,6 +396,7 @@ Run the frontend tests and production build:
 
 ```bash
 cd frontend
+
 npm test -- --run
 npm run build
 ```
