@@ -272,13 +272,26 @@ This stops and removes the containers and Compose network. It does not remove th
 
 ## Deployment
 
-The challenge requires a deployed application on Vercel or Heroku.
+WindLens is deployed on Vercel as a multi-service application.
 
-- **Frontend:** Not yet deployed.
-- **Backend API:** Not yet deployed.
-- **Hosting architecture:** Local Docker Compose setup verified; public deployment remains outstanding.
+- **Live application:** https://windlens-five.vercel.app/
+- **Frontend:** React, TypeScript, and Vite.
+- **Backend API:** FastAPI and Uvicorn.
+- **Hosting:** Vercel multi-service deployment.
 
-Update this section with the actual public URLs and hosting arrangement after deployment. Before marking deployment complete, verify the live application, API connectivity, and a representative analysis request.
+The application retrieves wind-generation forecast publications and historical actual-generation data from the Elexon BMRS API.
+
+### Deployment endpoints
+
+| Resource | URL |
+|---|---|
+| Web application | https://windlens-five.vercel.app/ |
+| Backend health check | https://windlens-five.vercel.app/health |
+| API documentation | https://windlens-five.vercel.app/docs |
+| OpenAPI schema | https://windlens-five.vercel.app/openapi.json |
+
+The deployed application should be tested for API connectivity and successful forecast-accuracy analysis before submission.
+
 
 ## Testing
 
@@ -319,7 +332,7 @@ The health endpoint should return:
 {"status":"ok"}
 ```
 
-The Docker Compose application has been built and run locally. Public deployment still needs to be completed and verified before submission.
+The Docker Compose application has been built and run locally. The application has also been deployed to Vercel. Live API connectivity and forecast-analysis behavior should be verified against the deployed environment before submission.
 
 ## Limitations
 
