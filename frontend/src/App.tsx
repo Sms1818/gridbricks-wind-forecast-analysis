@@ -457,13 +457,14 @@ export default function App() {
             <a
               className="brand-lockup"
               href="#main-analysis"
-              aria-label="GridBricks Wind Forecast Review"
+              aria-label="WindLens — Wind Forecast Review"
             >
-              <span className="brand-mark" aria-hidden="true">G</span>
-              <span className="brand-name">GridBricks</span>
+              <span className="brand-mark" aria-hidden="true">W</span>
+              <span className="brand-name">WindLens</span>
             </a>
 
             <span className="brand-divider" aria-hidden="true" />
+
             <span className="brand-product">Wind Forecast Review</span>
 
             <div className="brand-meta">
@@ -650,7 +651,7 @@ export default function App() {
 
           <div className="results-brand">
             <span className="results-brand-mark" aria-hidden="true">G</span>
-            <span>GRIDBRICKS / WIND REVIEW</span>
+            <span>WINDLENS / WIND FORECAST REVIEW</span>
           </div>
 
           <span className="results-status">ANALYSIS COMPLETE</span>
