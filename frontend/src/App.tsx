@@ -104,6 +104,8 @@ function compareForecastsByHour(
   earlier: AnalysisResponse,
   later: AnalysisResponse,
 ): { changed: number; unchanged: number; unavailable: number } {
+  // Compare each run's latest publication per hour; tied latest publications
+  // with different values cannot be treated as a single forecast.
   type LatestValue = { publishTime: number; generation: number | null }
   const latestByHour = (response: AnalysisResponse) => {
     const latest = new Map<number, LatestValue>()
@@ -330,6 +332,8 @@ export default function App() {
   }, [result])
 
   async function handleRun(nextInputs: ScenarioInputs = inputs) {
+    // A newer run supersedes any pending request so stale results cannot
+    // replace the scenario the user most recently submitted.
     abortRef.current?.abort()
 
     const controller = new AbortController()

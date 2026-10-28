@@ -8,6 +8,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 
+# Install backend dependencies before copying the application code.
 RUN python -m pip install \
     --index-url https://mirrors.aliyun.com/pypi/simple/ \
     --retries 2 \

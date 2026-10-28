@@ -271,6 +271,9 @@ def calculate_forecast_accuracy(
                 hour.replace(minute=30), []
             )
 
+            # Diagnostics count issues per expected hour; an hour can be both
+            # incomplete and ambiguous when one boundary is duplicated and
+            # the other is absent.
             if not first_values or not second_values:
                 incomplete_actual_hours += 1
 

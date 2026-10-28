@@ -129,6 +129,8 @@ function validateAnalysisResponse(
     data: AnalysisResponse,
     request: AnalysisRequest,
 ): void {
+    // Shape checks alone cannot catch internally inconsistent payloads, so
+    // validate the echoed request windows and recompute metrics from the rows.
     const deliveryStart = parseTimestamp(data.deliveryStart)!;
     const deliveryEnd = parseTimestamp(data.deliveryEnd)!;
     const decisionCutoff = parseTimestamp(data.decisionCutoff)!;
@@ -260,6 +262,8 @@ function validateAnalysisResponse(
         const expectedError =
             comparison.forecastGeneration - comparison.actualGeneration;
 
+        // The backend rounds summary metrics to two decimals; allow that
+        // rounding while still detecting material disagreement in the rows.
         const tolerance = 0.01;
 
         if (Math.abs(comparison.error - expectedError) > tolerance) {
@@ -309,6 +313,8 @@ export async function runAnalysis(
     request: AnalysisRequest,
     signal?: AbortSignal,
 ): Promise<AnalysisResponse> {
+    // URLSearchParams handles encoding timestamps and keeps request field
+    // names aligned with the backend query parameters.
     const params = new URLSearchParams();
 
     for (const [key, value] of Object.entries(request)) {

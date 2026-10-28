@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
+      // Match the container's same-origin API paths during local dev, while
+      // forwarding them directly to the FastAPI development server.
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,

@@ -1,3 +1,4 @@
+# Build static assets with Node, then serve only the output from Nginx.
 FROM node:22-alpine AS build
 
 WORKDIR /app

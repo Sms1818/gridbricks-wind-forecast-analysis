@@ -228,6 +228,8 @@ export function getAnalysisStats(
         response.deliveryEnd,
     );
 
+    // All averages use matched pairs only; an absent hour is never treated
+    // as zero generation or zero forecast error.
     const rows = response.comparisons;
     const matchedHours = rows.length;
 
@@ -271,6 +273,8 @@ export function getHourlyObservations(
 ): HourlyObservation[] {
     const expectedHours = getExpectedHours(deliveryStart, deliveryEnd);
     const start = requireValidDate(deliveryStart, "Delivery start").getTime();
+    // Build from the requested window so gaps remain visible even though the
+    // API returns comparison rows only for hours with both sources available.
     const matchedByHour = new Map(
         comparisons.map((row) => [Date.parse(row.startTime), row]),
     );
